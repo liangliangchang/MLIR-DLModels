@@ -32,3 +32,8 @@ func.func @test(%arg0: tensor<3x3xi32>, %arg1: tensor<3xi32>, %arg2: tensor<3xi3
     return %4 : tensor<3xi32>
   }
 }
+// CHECK: Unranked Memref base@ = {{0x[-9a-f]*}} 
+// CHECK-SAME: rank = {{.}} offset = {{.}} sizes = [3] strides = {{.*}} data = 
+// CHECK:   4
+// CHECK:   4
+// CHECK:   4

@@ -18,3 +18,6 @@ func.func @test(%arg0: tensor<1x1x1xi32>)->tensor<i32>{
     return %2 : tensor<i32>
   }
 }
+// CHECK: Unranked Memref base@ = {{0x[-9a-f]*}} 
+// CHECK-SAME: rank = {{.}} offset = {{.}} sizes = [1] strides = {{.*}} data = 
+// CHECK:   2

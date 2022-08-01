@@ -1,0 +1,15 @@
+---input---
+
+json_path = "/data/lchang1/MLIR-DLModels/src/data.json"
+mlir_input_dir = "/data/lchang1/MLIR-DLModels/test/without-main/"
+
+---output---
+
+mlir_output_dir = "/data/lchang1/MLIR-DLModels/added-main/"
+
+---validation---
+
+test_dir = "/data/lchang1/MLIR-DLModels/added-main/"
+mlir_build_dir = "/data/lchang1/mlir-llvm/"
+level_zero_build = "/data/lchang1/mlir-extensions/build/"
+

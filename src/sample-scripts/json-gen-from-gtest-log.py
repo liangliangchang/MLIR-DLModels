@@ -1,7 +1,5 @@
 import re
-import numpy
 import json
-
 
 class TensorVar:
     def __init__(self):
@@ -129,5 +127,5 @@ file.close()
 
 program.getProgramDic()
 a = program.programDic
-with open('data.json', 'w') as f:
+with open('data-test.json', 'w') as f:
     json.dump(a, f, indent=2)

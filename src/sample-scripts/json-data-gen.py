@@ -1,5 +1,4 @@
 import re
-import numpy
 import json
 import sys
 

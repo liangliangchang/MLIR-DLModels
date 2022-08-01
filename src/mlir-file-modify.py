@@ -3,21 +3,21 @@ import numpy
 import json
 import sys
 
-
 class inputVar:
     def __int__(self):
         self.arg = ""
         self.shape = ""
         self.value = ""
 
-
 class MlirOut:
     def __int__(self):
         self.testCallArg = ""
         self.testCallShape = ""
         self.testRes = ""
+        self.outTensorType = ""
         self.outShape = ""
         self.outType = ""
+        self.outValue = ""
         self.inputVars = []
 
 
@@ -46,9 +46,13 @@ def getPrintFunc(outType_):
     elif outType_ == "i32":
         result = "printMemrefI32"
     elif outType_ == "i8":
-        result = "printMemrefI8"
+        result = "printMemrefI32"
+    elif outType_ == "i1":
+        result = "printMemrefI32"
     elif outType_ == "f32":
         result = "printMemrefF32"
+    elif outType_ == "f64":
+        result = "printMemrefF64"
     else:
         raise Exception("Unsupported Type!", outType_)
     return result
@@ -84,22 +88,25 @@ def parseJasonInput(json_, functionName_, mlirOut_):
         ivar.shape = "tensor<" + shapeVar + dataType + ">"
         mlirOut_.testCallShape += ivar.shape + ","
         mlirOut_.inputVars.append(ivar)
+    ouputInJson = json_[functionName_]["output"]
+
+    mlirOut_.outValue = ouputInJson[0]["value"].rstrip(",").split(",")
+    mlirOut_.outShape = ouputInJson[0]["shape"].rstrip(",").split(",")
     mlirOut_.outType = dataType
     mlirOut_.testRes = "%" + str(inputID)
     mlirOut_.testCallArg = mlirOut_.testCallArg.rstrip(",")
     mlirOut_.testCallShape = mlirOut_.testCallShape.rstrip(",")
-    # outShape = json_[functionName_]["output"]["0"].shape
 
 mlir_path = sys.argv[1]
 json_path = sys.argv[2]
 out_mlir_path = sys.argv[3]
 functionName = sys.argv[4]
 
-
-# mlir_path = "/home/lchang1/testCase/MLIR-DLModels/test/without-main/CppEdsl.SimpleAdd.mlir"
-# json_path = "/home/lchang1/testCase/MLIR-DLModels/src/data.json"
-# out_mlir_path = "/home/lchang1/testCase/MLIR-DLModels/added-main/CppEdsl.SimpleAdd.mlir"
-# functionName = "CppEdsl.SimpleAdd"
+# for debug
+# mlir_path = "/data/lchang1/MLIR-DLModels/test/without-main/OpTest.BroadcastScalar.mlir"
+# json_path = "/data/lchang1//MLIR-DLModels/src/data.json"
+# out_mlir_path = "/data/lchang1/MLIR-DLModels/added-main/OpTest.BroadcastScalar.mlir"
+# functionName = "OpTest.BroadcastScalar"
 
 file = open(mlir_path)
 jsonFile = open(json_path)
@@ -112,10 +119,12 @@ mlirOut.__int__()
 parseJasonInput(jsonInput, functionName, mlirOut)
 for line in file:
     # func @main(%arg0: tensor<128x1x1xf32>, %arg1: tensor<1x128x1xf32>, %arg2: tensor<1x1x128xf32>) -> tensor<f32>
-    check_exact = re.compile(r'func @main(.*) -> (.*) {')
+    # writing inputs into the mlir file
+    check_exact = re.compile(r'func @main(.*) -> (.*([if].*)>) {')
     check_exact_result = check_exact.search(line)
     if check_exact_result is not None:
-        mlirOut.outShape = check_exact_result.group(2)
+        mlirOut.outTensorType = check_exact_result.group(2)
+        mlirOut.outType = check_exact_result.group(3)
         outFile.write("func.func @main() {\n")
         for var in mlirOut.inputVars:
             outFile.write("    " + var.arg + "= arith.constant dense<" + var.value + ">:" + var.shape + "\n")
@@ -123,9 +132,10 @@ for line in file:
                       mlirOut.testRes + " = call @test(" + mlirOut.testCallArg + ") : (" + mlirOut.testCallShape + ") "
                                                                                                                    "-> "
                                                                                                                    ""
-                      + mlirOut.outShape + "\n")
+                      + mlirOut.outTensorType + "\n")
         outFile.write(
-            "    %unranked = tensor.cast " + mlirOut.testRes + " : " + mlirOut.outShape + "to tensor<*x" + mlirOut.outType + ">" + "\n")
+            "    %unranked = tensor.cast " + mlirOut.testRes + " : " + mlirOut.outTensorType + "to tensor<*x" + mlirOut.outType + ">" + "\n")
+        
         printFunc = getPrintFunc(mlirOut.outType)
         outFile.write("    call @" + printFunc + "(%unranked) : (tensor<*x" + mlirOut.outType + ">) -> () \n\
     return \n\
@@ -134,4 +144,12 @@ func.func private @" + printFunc + "(tensor<*x" + mlirOut.outType + ">)\n")
         outFile.write("func.func @test" + check_exact_result.group(1) + "->" + check_exact_result.group(2) + "{\n")
     else:
         outFile.write(line)
+# writing FileCheck flags into the mlir file
+
+outFile.write("// CHECK: Unranked Memref base@ = {{0x[-9a-f]*}} \n")
+outFile.write(("// CHECK-SAME: rank = {{.}} offset = {{.}} sizes = [")+", ".join(mlirOut.outShape) +("] strides = {{.*}} data = \n"))
+
+for value in mlirOut.outValue:
+    outFile.write("// CHECK:   " + value + "\n")
+
 outFile.close()
